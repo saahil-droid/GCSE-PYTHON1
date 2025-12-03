@@ -1,0 +1,17 @@
+print("saahil")#this is a string
+print(4)#this is an integer
+print(4.4)#this is a real/float
+print("^")#this is a character
+print(True)#this is a boole
+
+
+
+
+
+#Data types
+#CRIBS
+#C = CHARACTOR
+#R = REAL FLOAT
+#I = INTEGER
+#B = BOOLEAN
+#S = STRING
