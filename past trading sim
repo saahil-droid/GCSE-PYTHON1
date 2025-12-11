@@ -1,0 +1,53 @@
+import yfinance as yf
+import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
+
+stock = input("Enter stock ticker symbol eg: AAPL: ").upper()
+
+try:
+    ticker = yf.Ticker(stock)
+    data = ticker.history(period="1mo")  # past month
+
+    if data.empty:
+        print("No data found for this ticker.")
+    else:
+        # Print the closing price for each day
+        for date, row in data.iterrows():
+            print(f"{date.date()}: Close price = {row['Close']}")
+            print("-----------------------------------")
+            print(f"{date.date()}: Open price = {row['Open']}")
+
+    # Plot closing and opening prices
+    plt.figure(figsize=(10, 5))
+    plt.plot(data.index, data["Close"], marker="o", label="Close")
+    plt.plot(data.index, data["Open"], marker="s", linestyle="--", label="Open")
+    plt.title(f"{stock} Open vs Close Prices - Last Month")
+    plt.xlabel("Date")
+    plt.ylabel("Price")
+    plt.grid(True)
+    plt.legend()
+    plt.gcf().autofmt_xdate()  # nicer date labels
+    plt.tight_layout()
+    plt.show()
+except Exception as e:
+    print("An error occurred:", e)
+
+
+    if data.empty:
+        print("No data found for this ticker.")
+    else:
+        # Print the closing price for each day
+        for date, row in data.iterrows():
+            print(f"{date.date()}: Close price = {row['Close']}")
+            print("-----------------------------------")
+            print(f"{date.date()}: Open price = {row['Open']}")
+
+        # Plot closing prices
+        plt.figure(figsize=(10, 5))
+        plt.plot(data.index, data["Close"], marker="o")
+        plt.title(f"{stock} Closing Prices - Last Month")
+        plt.xlabel("Date")
+        plt.ylabel("Close Price")
+        plt.grid(True)
+        plt.show()
+
