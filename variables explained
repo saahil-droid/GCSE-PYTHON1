@@ -1,0 +1,35 @@
+#variables explained
+
+#variable definition:
+#a names location
+#in a computers memory
+#that stores a value
+#and the value can change
+
+
+name = "saahil" #this is a variable
+
+#the variable is called name
+#the variable contains a value, "saahil"
+#
+age = 22
+football_team = "arsenal"
+colour = "blue"
+float_num = 102.1231212321563534512354
+score = 0
+boolean = True
+
+
+charactor ="@"
+real_float = 90.09876
+integer = 14
+boolean = False
+String = "32kd"
+
+print("this is a charactor ",charactor)
+print("this is a string ",football_team)
+print("this is a boolean ",boolean)
+print("this is a float ", float_num)
+print("this is an integer ", score)
+
+
