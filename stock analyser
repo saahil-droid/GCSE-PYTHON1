@@ -1,0 +1,175 @@
+import yfinance as yf
+import matplotlib.pyplot as plt
+import mplcursors
+
+# ---------------- STOCK SETUP ----------------
+stock = input("Enter stock ticker symbol eg: AAPL: ").upper()
+time_period = input("pick a time period eg: 1mo, 3mo, 5mo, 1y, 5y --> WARNING: CASE SENSITIVE:    ")
+
+try:
+    ticker = yf.Ticker(stock)
+    data = ticker.history(period=time_period)
+
+    if data.empty:
+        print("No data found for this ticker.")
+
+    else:
+        # ---------------- PRICE GRAPH ----------------
+
+        plt.figure(figsize=(10, 5))
+        plt.plot(data.index, data['Close'], label="Close Price", color='blue')
+        plt.plot(data.index, data['Open'], label="Open Price", color='red', alpha=0.7)
+        plt.title(f"{stock} - Prices ({time_period})")
+        plt.xlabel("Date")
+        plt.ylabel("Price ($)")
+        plt.grid(True)
+        plt.legend()
+        plt.gcf().autofmt_xdate()
+        plt.tight_layout()
+        mplcursors.cursor(hover=True) 
+        plt.show()
+        
+        # ---------------- important info INFO ----------------
+
+        today_price = data['Close'].iloc[-1]
+        avg_price = data['Close'].mean()
+
+        print(f"Today's closing price: ${today_price:.2f}")
+        print(f"Average closing price ({time_period}): ${avg_price:.2f}")
+        print()
+
+
+
+
+        #------------SMA-------
+
+        #what is SMA: Simple Moving Average
+        #why is it important : helps identify trends by smoothing out price data
+        #how to calculate: average of closing prices over a specific period
+        #how is this useul for trading: identifies support/resistance levels, trend direction, and potential buy/sell signals
+        #how can this be used in a strategy: buy when price crosses above SMA, sell when it crosses below
+        #buy when short term SMA crosses above long term SMA (golden cross)
+        #sell when short term SMA crosses below long term SMA (death cross)                     
+
+        data['SMA_20'] = data['Close'].rolling(window=20).mean()
+        data['SMA_50'] = data['Close'].rolling(window=50).mean()
+        data['SMA_200'] = data['Close'].rolling(window=200).mean()
+
+        print(f"20-day SMA valid points: {data['SMA_20'].notna().sum()}")
+        print(f"50-day SMA valid points: {data['SMA_50'].notna().sum()}")
+        print(f"200-day SMA valid points: {data['SMA_200'].notna().sum()}")
+
+         # ---------------- SMA GRAPH ----------------
+
+        plt.figure(figsize=(10, 5))
+        plt.plot(data.index, data['Close'], label="Close Price", color='blue')
+
+
+        plt.plot(data.index, data['SMA_20'], label="20-Day SMA", color='orange')
+        plt.plot(data.index, data['SMA_50'], label="50-Day SMA", color='green')
+        plt.plot(data.index, data['SMA_200'], label="200-Day SMA", color='red')
+        plt.title(f"{stock} - Close Price with SMAs ({time_period})")
+        plt.xlabel("Date")
+        plt.ylabel("Price ($)")
+        plt.grid(True)
+        plt.legend()
+        plt.gcf().autofmt_xdate()
+        plt.tight_layout()
+        mplcursors.cursor(hover=True)
+        plt.show()
+        
+
+
+        #-----RSI------
+        #what is RSI: Relative Strength Index
+        #why is it important: measures speed and change of price movements
+        #how to calculate: 100 - (100 / (1 + RS)), where RS is average gain / average loss over a period
+        #how is this useful for trading: identifies overbought/oversold conditions
+        #how can this be used in a strategy: buy when RSI < 30 (oversold), sell when RSI > 70 (overbought)
+
+        delta = data['Close'].diff() # Calculate price changes
+        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean() # Average gains
+        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean() # Average losses
+        rs = gain / loss # Relative Strength
+        rsi = 100 - (100 / (1 + rs)) # RSI formula
+        data['RSI'] = rsi # Add RSI to DataFrame
+
+        # ---------------- RSI GRAPH ----------------
+
+        plt.figure(figsize=(10, 5))
+        plt.plot(data.index, data['RSI'], label="RSI", color='purple')
+        plt.axhline(y=70, color='red', linestyle='--', label="Overbought (70)")
+        plt.axhline(y=30, color='green', linestyle='--', label="Oversold (30)")
+        plt.title(f"{stock} - RSI ({time_period})")
+        plt.xlabel("Date")
+        plt.ylabel("RSI")
+        plt.grid(True)
+        plt.legend()
+        plt.gcf().autofmt_xdate()
+        plt.tight_layout()
+        mplcursors.cursor(hover=True)
+        plt.show()
+
+
+
+        #---signal detection--- RSI OVERBOUGHT/OVERSOLD
+        if data['RSI'].iloc[-1] > 70:
+            print("RSI indicates the stock is overbought. Consider selling.")
+        elif data['RSI'].iloc[-1] < 30:
+            print("RSI indicates the stock is oversold. Consider buying.")
+        else:
+            print("RSI is neutral.")   
+
+
+        # Get yesterday's values
+        sma_50_yesterday = data['SMA_50'].iloc[-2]
+        sma_200_yesterday = data['SMA_200'].iloc[-2]
+        sma_20_yesterday = data['SMA_20'].iloc[-2]
+        # Get today's values
+        sma_50_today = data['SMA_50'].iloc[-1]
+        sma_200_today = data['SMA_200'].iloc[-1]
+        sma_20_today = data['SMA_20'].iloc[-1]
+
+        
+        
+        # ============ TRADING SIGNAL DETECTION ============
+
+
+        #-------------LONG-TERM SIGNALS FUNCTION---------------------------------------------------------------------
+
+        def long_term_signals(sma_50_yesterday, sma_200_yesterday, sma_50_today, sma_200_today):
+
+            if sma_50_yesterday < sma_200_yesterday and sma_50_today > sma_200_today:
+                print("GOLDEN CROSS! 50-day SMA crossed above 200-day SMA. Strong bullish signal.")
+
+            elif sma_50_yesterday > sma_200_yesterday and sma_50_today < sma_200_today:
+                print("DEATH CROSS! 50-day SMA crossed below 200-day SMA. Strong bearish signal.")  
+     
+            else:
+                print("No significant long-term SMA crossovers detected today.")
+
+
+        #-------------SHORT-TERM SIGNALS FUNCTION---------------------------------------------------------------------
+
+
+        def short_term_signals(sma_20_yesterday, sma_50_yesterday, sma_20_today, sma_50_today):
+            if sma_20_yesterday < sma_50_yesterday and sma_20_today > sma_50_today:
+                print("20-day SMA crossed above 50-day SMA. Short-term bullish signal.")
+
+        # 20 crosses BELOW 50 (Short-term bearish)
+            elif sma_20_yesterday > sma_50_yesterday and sma_20_today < sma_50_today:
+                print("20-day SMA crossed below 50-day SMA. Short-term bearish signal.")
+
+            else:
+                print("No significant SMA crossovers detected today.")
+
+        # Call the functions to actually run them
+        long_term_signals(sma_50_yesterday, sma_200_yesterday, sma_50_today, sma_200_today)
+        short_term_signals(sma_20_yesterday, sma_50_yesterday, sma_20_today, sma_50_today)
+        
+
+
+
+except Exception as e:
+    print(f"An error occurred: {e}")
+
