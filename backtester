@@ -1,0 +1,304 @@
+import yfinance as yf
+import matplotlib.pyplot as plt
+import mplcursors
+
+FEE_RATE = 0.001  # 0.1% per trade
+
+# ---------------- STOCK SETUP ----------------
+
+stock = input("Enter stock ticker symbol eg: AAPL: enter q to quit   ").upper()
+if stock == "Q":
+    exit()
+time_period = input("pick a time period eg: 1mo, 3mo, 5mo, 1y, 5y --> WARNING: CASE SENSITIVE: ----> ")
+
+try:
+    ticker = yf.Ticker(stock)
+    data = ticker.history(period=time_period)
+
+    if data.empty:
+        print("No data found for this ticker.")
+
+    else:
+        # ---------------- PRICE GRAPH ----------------
+
+        plt.figure(figsize=(10, 5))
+        plt.plot(data.index, data['Close'], label="Close Price", color='blue')
+        plt.plot(data.index, data['Open'], label="Open Price", color='red', alpha=0.7)
+        plt.title(f"{stock} - Prices ({time_period})")
+        plt.xlabel("Date")
+        plt.ylabel("Price ($)")
+        plt.grid(True)
+        plt.legend()
+        plt.gcf().autofmt_xdate()
+        plt.tight_layout()
+        mplcursors.cursor(hover=True)
+        plt.show()
+
+        # ---------------- important info INFO ----------------
+
+        today_price = data['Close'].iloc[-1]
+        avg_price = data['Close'].mean()
+
+        print(f"Today's closing price: ${today_price:.2f}")
+        print(f"Average closing price ({time_period}): ${avg_price:.2f}")
+        print()
+
+        # ---------------- STRATEGY SETUP ----------------
+        
+        def create_strategy():
+            print("note: transaction fees of 0.1% per trade are included in calculations")
+            print("You will now create a basic trading strategy")
+            print("Example: up 3 days = buy, down 2 days = sell")
+
+            invest = input("How much money do you want to invest?: ")
+            invest = invest.replace(",", "")
+            invest = int(invest)
+
+            up_days_needed = int(input("How many up days to BUY?: "))
+            down_days_needed = int(input("How many down days to SELL?: "))
+
+            if invest <= 0:
+                print("Investment must be positive")
+                exit()
+
+            if up_days_needed < 1 or down_days_needed < 1:
+                print("Days must be at least 1")
+                exit()
+
+            return invest, up_days_needed, down_days_needed
+
+        invest, up_days_needed, down_days_needed = create_strategy()
+
+        min_profit = float(input("Set a minimum profit threshold to SELL (enter 0 for no threshold): $"))
+        print()
+
+        # ---------------- STRATEGY VARIABLES ----------------
+
+        up_count = 0
+        down_count = 0
+
+        holding = False
+        cash = invest
+        shares = 0
+        buy_price = 0
+
+        total_trades = 0      # FIX: now counts completed SELL trades only
+        wins = 0
+
+        previous_close = None
+        trades = []
+
+        #equity = cash + (shares * data.iloc[-1]["Close"])
+        equity = cash + (shares * data.iloc[-1]["Close"])
+        equity_curve = []
+
+
+        # ---------------- STRATEGY LOOP ----------------
+
+        for date, row in data.iterrows():
+            close = row["Close"]
+
+            if previous_close is not None:
+
+                if close > previous_close:
+                    up_count += 1
+                    down_count = 0
+
+                elif close < previous_close:
+                    down_count += 1
+                    up_count = 0
+
+                else:
+                    up_count = 0
+                    down_count = 0
+
+                # -------- BUY RULE --------
+                if up_count >= up_days_needed and not holding:
+                    shares = (cash * (1 - FEE_RATE)) / close
+                    cash = 0
+                    holding = True
+                    buy_price = close
+                    print(f"BUY on {date.date()} at ${close:.2f}")
+                    up_count = 0
+
+                    trades.append({
+                        'date': date,
+                        'action': 'BUY',
+                        'price': close,
+                        'shares': shares
+                    })
+
+                # -------- SELL RULE --------
+                elif down_count >= down_days_needed and holding:
+                    potential_cash = shares * close
+                    potential_profit = potential_cash - (shares * buy_price)
+
+                    if potential_profit >= min_profit:
+                        cash = potential_cash * (1 - FEE_RATE)
+                        profit = cash - (shares * buy_price) 
+                        shares = 0
+                        holding = False
+
+                        total_trades += 1   # FIX: count trade here only
+
+                        if profit > 0:
+                            wins += 1
+
+                        print(f"SELL on {date.date()} at ${close:.2f} | Profit: ${profit:.2f}")
+                        down_count = 0
+
+                        trades.append({
+                            'date': date,
+                            'action': 'SELL',
+                            'price': close,
+                            'profit': profit
+                        })
+                    else:
+                        print(f"SELL SKIPPED on {date.date()} - Profit ${potential_profit:.2f} below threshold ${min_profit:.2f}")
+                        down_count = 0
+
+            portfolio_value = cash + shares * close
+            equity_curve.append(portfolio_value)
+
+            previous_close = close
+
+
+        # After equity curve calculation
+        peak = invest
+        max_drawdown = 0
+
+        for value in equity_curve:
+            if value > peak:
+                peak = value
+            drawdown = (peak - value) / peak
+            if drawdown > max_drawdown:
+                max_drawdown = drawdown
+        print(f"Max drawdown: {max_drawdown * 100:.2f}%")
+
+
+        # ---------------- FINAL VALUE ----------------
+
+        if holding:
+            cash = shares * data.iloc[-1]["Close"] * (1 - FEE_RATE)  # ADD FEE
+            final_profit = cash - invest
+            total_trades += 1    # FIX: final forced sell is a completed trade
+
+            if final_profit > 0:
+                wins += 1
+
+            print(f"FINAL SELL at ${data.iloc[-1]['Close']:.2f} | Profit: ${final_profit:.2f}")
+
+        # ---------------- RESULTS ----------------
+
+        print("\n========== SUMMARY ==========")
+        print(f"Stock: {stock}")
+        print(f"Period: {time_period}")
+        print(f"Strategy: Buy after {up_days_needed} up days, Sell after {down_days_needed} down days")
+        print(f"Min profit threshold: ${min_profit}")
+        print(f"Transaction fee: {FEE_RATE * 100}% per trade")
+        print()
+
+        print(f"Max drawdown: {max_drawdown * 100:.2f}%")
+
+        print(f"Starting cash: ${invest:,.2f}")
+        print(f"Ending cash: ${cash:,.2f}")
+        print(f"Total profit: ${cash - invest:,.2f}")
+        print(f"Return: {((cash - invest) / invest) * 100:.2f}%")  # ADD THIS
+        print()
+        print(f"Total trades: {total_trades}")
+        print(f"Wins: {wins}")
+        print(f"Win rate: {wins / total_trades * 100 if total_trades > 0 else 0:.1f}%")
+
+
+        # ---------------- BUY & HOLD COMPARISON ----------------
+        buy_and_hold_shares = invest / data.iloc[0]["Close"]
+        buy_and_hold_value = buy_and_hold_shares * data.iloc[-1]["Close"]
+        buy_and_hold_profit = buy_and_hold_value - invest
+
+        print("\n========== VS BUY & HOLD ==========")
+        print(f"Buy & Hold profit: ${buy_and_hold_profit:.2f}")
+        print(f"Your strategy profit: ${cash - invest:.2f}")
+        print(f"Difference: ${(cash - invest) - buy_and_hold_profit:.2f}")  
+
+        # ---------------- PRICE GRAPH WITH TRADES ----------------  <-- ADD HERE
+
+        buy_dates = [t['date'] for t in trades if t['action'] == 'BUY']
+        sell_dates = [t['date'] for t in trades if t['action'] == 'SELL']
+        buy_prices = [t['price'] for t in trades if t['action'] == 'BUY']
+        sell_prices = [t['price'] for t in trades if t['action'] == 'SELL']
+
+        plt.figure(figsize=(10, 5))
+        plt.plot(data.index, data['Close'], label="Close Price", color='blue')
+        plt.scatter(buy_dates, buy_prices, color='green', marker='^', s=100, label='BUY', zorder=5)
+        plt.scatter(sell_dates, sell_prices, color='red', marker='v', s=100, label='SELL', zorder=5)
+        plt.title(f"{stock} - Trades Executed")
+        plt.xlabel("Date")
+        plt.ylabel("Price ($)")
+        plt.grid(True)
+        plt.legend()
+        plt.gcf().autofmt_xdate()
+        plt.tight_layout()
+        mplcursors.cursor(hover=True)
+        plt.show()
+
+        # ---------------- EQUITY CURVE ----------------
+        print("========================EQUIATY CURVE======================")
+        plt.figure(figsize=(10, 5))
+        plt.plot(data.index, equity_curve)
+        plt.title("Equity Curve")
+        plt.xlabel("Date")
+        plt.ylabel("Portfolio Value ($)")
+        plt.grid(True)
+        plt.tight_layout()
+        mplcursors.cursor(hover=True)
+        plt.show()
+
+
+
+
+        import csv
+
+# ---------------- SAVE RESULTS TO CSV ----------------
+
+        # Save summary
+        with open(f'{stock}_summary.csv', 'w', newline='') as f:  #opens a file called AAPL_summary.csv
+            writer = csv.writer(f)
+    
+            writer.writerow(['Metric', 'Value']) #header row
+            writer.writerow(['Stock', stock]) #first data row
+            writer.writerow(['Period', time_period]) #second data row
+            writer.writerow(['Strategy', f'Buy after {up_days_needed} up, Sell after {down_days_needed} down']) #third data row
+            writer.writerow(['Min Profit Threshold', f'${min_profit}']) #fourth data row
+            writer.writerow(['Transaction Fee', f'{FEE_RATE * 100}%']) #fifth data row
+            writer.writerow(['', '']) #empty row
+            writer.writerow(['Starting Cash', f'${invest:,.2f}']) #sixth data row
+            writer.writerow(['Ending Cash', f'${cash:,.2f}'])   #seventh data row
+            writer.writerow(['Total Profit', f'${cash - invest:,.2f}']) #eighth data row
+            writer.writerow(['Return %', f'{((cash - invest) / invest) * 100:.2f}%']) #ninth data row
+            writer.writerow(['Max Drawdown', f'{max_drawdown * 100:.2f}%']) #tenth data row
+            writer.writerow(['', '']) #empty row
+            writer.writerow(['Total Trades', total_trades]) #eleventh data row
+            writer.writerow(['Wins', wins]) #twelfth data row
+            writer.writerow(['Win Rate', f'{wins / total_trades * 100 if total_trades > 0 else 0:.1f}%']) #thirteenth data row
+
+        # Save trades
+        with open(f'{stock}_trades.csv', 'w', newline='') as f: #opens a file called AAPL_trades.csv
+            writer = csv.writer(f) #csv writer object
+            writer.writerow(['Date', 'Action', 'Price', 'Shares', 'Profit']) #header row
+    
+            for trade in trades: #loop through each trade in trades list
+                writer.writerow([ #write a row for each trade
+                    trade['date'].strftime('%Y-%m-%d'), #format date
+                    trade['action'], #buy or sell
+                    f"{trade['price']:.2f}", #price formatted to 2 decimal places
+                    f"{trade.get('shares', 0):.4f}", #shares bought (0 for sells)
+                    f"{trade.get('profit', 0):.2f}" #profit made (0 for buys)
+                ])
+
+        print(f"\n✓ Summary saved to {stock}_summary.csv")
+        print(f"✓ Trades saved to {stock}_trades.csv")
+
+except Exception as e:
+    print("An error occurred:", e)
+
+
