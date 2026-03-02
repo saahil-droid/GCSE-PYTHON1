@@ -1,0 +1,23 @@
+#string slicing explained
+
+fruit = "banana"
+print(fruit[3])
+
+#above is a variable that contains:
+#a string
+#the print function prints from the variable, but has square brackets
+#[] are an INDEX
+
+person = "MAdAM"
+print(person[3:2])
+
+
+
+
+word = "fgsfdhadfasjkdbaksjdfbasdfailsdfgiasdgasdkjhBadfasdfasdfasdfasdfasdfasdasdffasdfasdfasdfasdfljasdfljkhasdfkljhasdlkfhalsdkfhalkfhdalsjkdfhlaskfhdlkafhdlakfhdlkajfhdlkjadfhljkafhdlakfhdlaksjfhqwilurheoiwuqryeoiwueyrowiquyezasdfihasdofuiaosuifydoasudyoiaudoiuasdoiasudoiasufdoiaufydouiasfdoiausfdoaiusfydoiausfydoauisfydouiafydiouasfydqwljehlqjrhqlwjherlkqwrheoasidfyasuiofydlqjkwrhelqwjkrheiausdfyioasufydaiofyudaosifyudlqwjhelqkwrhelkqjwrhlqkjwrhealfyudaiodfyuoaifyudoiudyfaoiuydsouiaysdflqkjwhelqwkerjhajksdnfafndlqwehrqwerasdfasdfasdgfdsdfasdfWEILASJKDCILAWUEFGKSHADKLASGDFILASGDFKJHSGDAIGASDFHAFGDIASGDFJHKSGDAFIAGSDFHGASLDFGILASDGFKLJASGDFLYIGASDFBJHLgjhlgasjdfghjlasdhfiluasfghdjsadfuilasgdfjhlsdafuilgasdjhasdifalshdfglkjashdfilasdtfjlhsbdafliuWEFLIJAWEBFKAJSDVNBA"
+
+print(len(word))
+
+
+
+
