@@ -1,0 +1,79 @@
+# Math Game
+import random
+import time
+
+
+class Question:
+    def __init__(self, low, high):
+        self.n1 = random.randint(low, high)
+        self.n2 = random.randint(low, high)
+        self.operation = random.choice(["+", "-", "*"])
+
+   
+        if self.operation == "+":
+            self.answer = self.n1 + self.n2
+        elif self.operation == "-":
+            self.answer = self.n1 - self.n2
+        else:
+            self.answer = self.n1 * self.n2
+
+
+        size = abs(self.answer)
+        if size < 50:
+            self.time_limit = 3
+            self.points = 1
+        elif size < 100:
+            self.time_limit = 5
+            self.points = 2
+        elif size < 200:
+            self.time_limit = 10
+            self.points = 3
+        else:
+            self.time_limit = 10
+            self.points = 5
+
+    def text(self):
+        return f"{self.n1} {self.operation} {self.n2}"
+
+
+class MathGame:
+    def __init__(self, rounds=10, low=1, high=200):
+        self.rounds = rounds
+        self.low = low
+        self.high = high
+        self.score = 0
+
+    def play(self):
+        print("Math Game!")
+        input("Press Enter to start...")
+
+        for round_number in range(1, self.rounds + 1):
+            self.play_round(round_number)
+
+        print("\nGame Over!")
+        print(f"Final score: {self.score}")
+
+    def play_round(self, round_number):
+        question = Question(self.low, self.high)
+
+        print(f"\nQuestion {round_number}/{self.rounds}")
+        print(f"You have {question.time_limit} seconds!")
+
+        start = time.time()
+        guess = input(f"{question.text()} = ")
+        time_taken = time.time() - start
+
+        if time_taken > question.time_limit:
+            print(f"Too slow! The answer was {question.answer}")
+        elif guess.strip() == str(question.answer):
+            self.score += question.points
+            print(f"Correct! +{question.points}")
+        else:
+            print(f"Wrong! The answer was {question.answer}")
+
+        print(f"Score: {self.score}")
+
+
+if __name__ == "__main__":
+    game = MathGame()
+    game.play()
