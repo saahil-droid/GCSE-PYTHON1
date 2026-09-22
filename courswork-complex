@@ -1,0 +1,170 @@
+# Math Game
+import math
+import os
+import queue
+import random
+import sys
+import threading
+import time
+
+os.system("")  
+
+# Change these to make the game easier or harder
+LEVELS = {
+    "1": {"name": "Easy",   "max": 10, "types": ["+", "-"],                     "time": 10, "points": 1},
+    "2": {"name": "Medium", "max": 12, "types": ["+", "-", "*", "/"],           "time": 8,  "points": 2},
+    "3": {"name": "Hard",   "max": 20, "types": ["+", "-", "*", "/", "²", "?"], "time": 7,  "points": 3},
+}
+
+
+class Question:
+    def __init__(self, max_num, types):
+        kind = random.choice(types)
+        a = random.randint(1, max_num)
+        b = random.randint(1, max_num)
+
+        if kind == "+":
+            self.text = f"{a} + {b}"
+            self.answer = a + b
+        elif kind == "-":
+            big, small = max(a, b), min(a, b)  # bigger number first, so never negative
+            self.text = f"{big} - {small}"
+            self.answer = big - small
+        elif kind == "*":
+            b = random.randint(1, 12)  # keep it to times tables
+            self.text = f"{a} × {b}"
+            self.answer = a * b
+        elif kind == "/":
+            b = random.randint(2, 12)
+            self.text = f"{a * b} ÷ {b}"  # built backwards so it always divides exactly
+            self.answer = a
+        elif kind == "²":
+            a = random.randint(2, 12)
+            self.text = f"{a}²"
+            self.answer = a * a
+        elif kind == "?":  # missing number
+            self.text = f"? + {b} = {a + b}"
+            self.answer = a
+
+
+class Keyboard:
+    """Reads your typing in the background, so the timer can keep ticking."""
+
+    def __init__(self):
+        self.lines = queue.Queue()
+        threading.Thread(target=self.read_forever, daemon=True).start()
+
+    def read_forever(self):
+        while True:
+            try:
+                self.lines.put(input())
+            except EOFError:
+                return
+
+    def clear(self):
+        while not self.lines.empty():
+            self.lines.get()
+
+    def get(self, timeout=None):
+        try:
+            return self.lines.get(timeout=timeout)
+        except queue.Empty:
+            return None
+
+
+class MathGame:
+    def __init__(self, rounds=10, lives=3):
+        self.rounds = rounds
+        self.lives = lives
+        self.score = 0
+        self.streak = 0
+        self.level = None
+        self.keyboard = None
+
+    def play(self):
+        print("=== Math Game ===")
+        self.level = self.choose_level()
+        self.keyboard = Keyboard()
+        self.get_ready()
+
+        for round_number in range(1, self.rounds + 1):
+            self.play_round(round_number)
+            if self.lives == 0:
+                print("\n💀 Out of lives!")
+                break
+
+        print(f"\nGame Over! Final score: {self.score}")
+
+    def choose_level(self):
+        for key, level in LEVELS.items():
+            print(f"  {key}) {level['name']}")
+        choice = input("Pick a level: ").strip()
+        while choice not in LEVELS:
+            choice = input("Type 1, 2 or 3: ").strip()
+        return LEVELS[choice]
+
+    def get_ready(self):
+        for n in (3, 2, 1):
+            print(f"{n}...")
+            time.sleep(1)
+        print("GO!")
+
+    def play_round(self, round_number):
+        question = Question(self.level["max"], self.level["types"])
+        print(f"\nQuestion {round_number}/{self.rounds}   ❤️  {self.lives}   🔥 {self.streak}")
+
+        guess = self.ask(question.text, self.level["time"])
+
+        if guess is None:
+            print(f"\n⏰ Time's up! The answer was {question.answer}. Press Enter to continue.")
+            self.keyboard.get()  # swallows anything you half-typed
+            self.lose_life()
+        elif guess.strip() == str(question.answer):
+            self.streak += 1
+            points = self.level["points"]
+            if self.streak >= 3:
+                points *= 2
+                print(f"✅ Correct! +{points} (streak bonus x2!)")
+            else:
+                print(f"✅ Correct! +{points}")
+            self.score += points
+        else:
+            print(f"❌ Wrong! The answer was {question.answer}")
+            self.lose_life()
+
+        print(f"Score: {self.score}")
+
+    def lose_life(self):
+        self.lives -= 1
+        self.streak = 0
+
+    def ask(self, text, seconds):
+        self.keyboard.clear()
+        print()  # empty line where the timer will be drawn
+        sys.stdout.write(f"{text} = ")
+        sys.stdout.flush()
+
+        deadline = time.time() + seconds
+        shown = None
+        while True:
+            left = deadline - time.time()
+            if left <= 0:
+                return None
+            if math.ceil(left) != shown:
+                shown = math.ceil(left)
+                self.show_timer(shown)
+            answer = self.keyboard.get(timeout=0.1)
+            if answer is not None:
+                return answer
+
+    def show_timer(self, seconds):
+        colour = "\033[31m" if seconds <= 3 else "\033[32m"  # red when nearly out
+        bar = "█" * seconds
+        # save cursor, jump up a line, redraw the timer, jump back to where you're typing
+        sys.stdout.write(f"\0337\033[1A\r\033[2K{colour}⏳ {seconds:>2}s {bar}\033[0m\0338")
+        sys.stdout.flush()
+
+
+if __name__ == "__main__":
+    game = MathGame()
+    game.play()
