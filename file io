@@ -1,0 +1,34 @@
+from pkgutil import get_data
+
+def get_data():
+    first_name = input("First name: ")
+    last_name = input("Last name: ")
+    age = int(input("Age: "))
+
+    return first_name, last_name, age
+
+def create_loop():
+    while True:
+        first_name, last_name, age = get_data()
+        print(f"Hello, {first_name} {last_name}. You are {age} years old.")
+        with open("names.txt", "a") as file:
+            file.write(f"{first_name} {last_name}, Age: {age}\n")
+
+        
+        cont= input("Do you want to enter another person? (yes/no): ")
+        if cont.lower() != 'yes':
+            break
+            
+
+def main():
+    create_loop()
+
+if __name__ == "__main__":
+    main()
+
+
+
+file = open("names.txt", "r")
+content = file.read()
+file.close()
+print(content)
